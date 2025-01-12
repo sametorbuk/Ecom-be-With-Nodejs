@@ -1,7 +1,11 @@
 const Iyzipay = require("iyzipay");
 const iyzipay = require("../config/iyzico");
+require("dotenv").config();
 
 const initiate3DPayment = (req, res) => {
+  const { price, cardHolderName, cardNumber, expireMonth, expireYear, cvc } =
+    req.body;
+
   const paymentRequest = {
     locale: Iyzipay.LOCALE.TR,
     conversationId: "123456789",
@@ -12,20 +16,20 @@ const initiate3DPayment = (req, res) => {
     basketId: "B67832",
     paymentChannel: Iyzipay.PAYMENT_CHANNEL.WEB,
     paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
-    callbackUrl: `${process.env.BASE_URL}/api/payment/3d-callback`,
+    callbackUrl: `${process.env.BACKEND_BASE_URL}/teknotik/payment/3d-callback`,
     paymentCard: {
-      cardHolderName: "Samet Orbuk",
-      cardNumber: "5528790000000008",
-      expireMonth: "12",
-      expireYear: "2030",
-      cvc: "123",
+      cardHolderName: cardHolderName,
+      cardNumber: cardNumber,
+      expireMonth: expireMonth,
+      expireYear: expireYear,
+      cvc: cvc,
       registerCard: "0",
     },
     buyer: {
       id: "BY789",
       name: "Samet",
       surname: "Orbuk",
-      gsmNumber: "+905350000000",
+      gsmNumber: "+905057807035",
       email: "samet@example.com",
       identityNumber: "74300864791",
       ip: req.ip,
@@ -50,7 +54,7 @@ const initiate3DPayment = (req, res) => {
         name: "Ürün 1",
         category1: "Elektronik",
         itemType: Iyzipay.BASKET_ITEM_TYPE.PHYSICAL,
-        price: "50",
+        price: price,
       },
       {
         id: "BI102",
@@ -64,11 +68,12 @@ const initiate3DPayment = (req, res) => {
 
   iyzipay.threedsInitialize.create(paymentRequest, (err, result) => {
     if (err) {
+      console.log("Hata Detayı:", err);
       return res
         .status(500)
         .json({ error: "Ödeme başlatılırken hata oluştu." });
     }
-
+    console.log(result);
     res.status(200).json({
       htmlContent: result.threeDSHtmlContent,
     });
@@ -77,6 +82,7 @@ const initiate3DPayment = (req, res) => {
 
 const verify3DSecurePayment = (req, res) => {
   const { paymentId, conversationData } = req.body;
+  console.log("3D Callback Data:", req.body);
 
   const verifyRequest = {
     locale: Iyzipay.LOCALE.TR,
