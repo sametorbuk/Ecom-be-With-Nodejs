@@ -1,21 +1,20 @@
-const iyzipay = require("../config/iyzico");
 const Iyzipay = require("iyzipay");
+const iyzipay = require("../config/iyzico");
 
-const createPayment = (req, res) => {
-  const { price, paidPrice, buyerName, buyerEmail, buyerPhone } = req.body;
-
+const initiate3DPayment = (req, res) => {
   const paymentRequest = {
     locale: Iyzipay.LOCALE.TR,
     conversationId: "123456789",
-    price: price,
-    paidPrice: paidPrice,
+    price: "100",
+    paidPrice: "100",
     currency: Iyzipay.CURRENCY.TRY,
     installment: "1",
     basketId: "B67832",
     paymentChannel: Iyzipay.PAYMENT_CHANNEL.WEB,
     paymentGroup: Iyzipay.PAYMENT_GROUP.PRODUCT,
+    callbackUrl: `${process.env.BASE_URL}/api/payment/3d-callback`,
     paymentCard: {
-      cardHolderName: buyerName,
+      cardHolderName: "Samet Orbuk",
       cardNumber: "5528790000000008",
       expireMonth: "12",
       expireYear: "2030",
@@ -24,28 +23,22 @@ const createPayment = (req, res) => {
     },
     buyer: {
       id: "BY789",
-      name: buyerName,
-      surname: "Soyadı",
-      gsmNumber: buyerPhone,
-      email: buyerEmail,
+      name: "Samet",
+      surname: "Orbuk",
+      gsmNumber: "+905350000000",
+      email: "samet@example.com",
       identityNumber: "74300864791",
-      lastLoginDate: "2023-01-01 12:00:00",
-      registrationDate: "2023-01-01 12:00:00",
-      registrationAddress: "Istanbul",
       ip: req.ip,
-      city: "Istanbul",
-      country: "Turkey",
-      zipCode: "34732",
     },
     shippingAddress: {
-      contactName: buyerName,
+      contactName: "Samet Orbuk",
       city: "Istanbul",
       country: "Turkey",
       address: "Kadıköy",
       zipCode: "34742",
     },
     billingAddress: {
-      contactName: buyerName,
+      contactName: "Samet Orbuk",
       city: "Istanbul",
       country: "Turkey",
       address: "Kadıköy",
@@ -69,23 +62,42 @@ const createPayment = (req, res) => {
     ],
   };
 
-  iyzipay.payment.create(paymentRequest, (err, result) => {
+  iyzipay.threedsInitialize.create(paymentRequest, (err, result) => {
     if (err) {
-      console.error("Ödeme hatası:", err);
       return res
         .status(500)
-        .json({ error: "Ödeme işlemi sırasında hata oluştu." });
+        .json({ error: "Ödeme başlatılırken hata oluştu." });
     }
 
-    try {
-      const response = typeof result === "string" ? JSON.parse(result) : result;
-      console.log("Ödeme Yanıtı:", response);
-      res.status(200).json(response);
-    } catch (parseError) {
-      console.error("Yanıt çözümleme hatası:", parseError);
-      res.status(500).json({ error: "Yanıt çözümleme hatası." });
+    res.status(200).json({
+      htmlContent: result.threeDSHtmlContent,
+    });
+  });
+};
+
+const verify3DSecurePayment = (req, res) => {
+  const { paymentId, conversationData } = req.body;
+
+  const verifyRequest = {
+    locale: Iyzipay.LOCALE.TR,
+    conversationId: "123456789",
+    paymentId: paymentId,
+    conversationData: conversationData,
+  };
+
+  iyzipay.threedsPayment.create(verifyRequest, (err, result) => {
+    if (err) {
+      return res
+        .status(500)
+        .json({ error: "Doğrulama sırasında hata oluştu." });
+    }
+
+    if (result.status === "success") {
+      res.status(200).send("Ödeme başarılı, teşekkürler!");
+    } else {
+      res.status(400).send("Ödeme başarısız. Lütfen tekrar deneyin.");
     }
   });
 };
 
-module.exports = { createPayment };
+module.exports = { initiate3DPayment, verify3DSecurePayment };
